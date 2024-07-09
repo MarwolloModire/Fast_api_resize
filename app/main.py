@@ -3,7 +3,7 @@ from models.models import User
 
 
 app = FastAPI()
-user = User(name='Jonny Kage', age=42)
+user = User(name='Abra Kadabra', age=42)
 
 
 @app.get("/users")
