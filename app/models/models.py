@@ -1,10 +1,8 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr, Field
 
 
-class Feedback(BaseModel):
+class UserCreate(BaseModel):
     name: str
-    message: str
-
-
-class ResponseModel(BaseModel):
-    message: str
+    email: EmailStr
+    age: int | None = Field(default=None, gt=0)
+    is_subscribed: bool | None = None
