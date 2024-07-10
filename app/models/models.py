@@ -1,8 +1,6 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, constr
 
 
-class Product(BaseModel):
-    product_id: int
-    name: str
-    category: str
-    price: float | None = Field(default=None, gt=0)
+class User(BaseModel):
+    username: str
+    password: constr(min_length=8, max_length=20)

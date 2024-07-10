@@ -1,68 +1,38 @@
-from fastapi import FastAPI, status
-from models.models import Product
-
+from fastapi import FastAPI, Response, Cookie
+from fastapi.responses import JSONResponse
+from secrets import token_urlsafe
+from models.models import User
 
 app = FastAPI()
 
 
-sample_product_1 = {
-    "product_id": 123,
-    "name": "Smartphone",
-    "category": "Electronics",
-    "price": 599.99
-}
-
-sample_product_2 = {
-    "product_id": 456,
-    "name": "Phone Case",
-    "category": "Accessories",
-    "price": 19.99
-}
-
-sample_product_3 = {
-    "product_id": 789,
-    "name": "Iphone",
-    "category": "Electronics",
-    "price": 1299.99
-}
-
-sample_product_4 = {
-    "product_id": 101,
-    "name": "Headphones",
-    "category": "Accessories",
-    "price": 99.99
-}
-
-sample_product_5 = {
-    "product_id": 202,
-    "name": "Smartwatch",
-    "category": "Electronics",
-    "price": 299.99
-}
-
-sample_products = [sample_product_1, sample_product_2,
-                   sample_product_3, sample_product_4, sample_product_5]
-products: list[Product] = [Product(**item) for item in sample_products]
+arr = (('Patrick', 'Superstar'),
+       ('Bob', 'Crastysponge'),
+       ('user345', 'password345'))
+cookie_dict = {}
 
 
-@app.get('/products/search', status_code=status.HTTP_200_OK)
-async def product_info_by_filters(keyword: str, category: str | None = None, limit: int = 10) -> list[Product]:
-    product: list[Product] = []
-    for item in products:
-        if len(product) == limit:
-            break
-
-        if keyword in item.name.lower():
-            if category is None:
-                product.append(item)
-            elif category == item.category:
-                product.append(item)
-
-    return product
+@app.post('/login')
+async def create_cookie(user: User):
+    if (user.username, user.password) in arr:
+        cookie_dict[ck_name := 'session_token'] = (
+            token := token_urlsafe(16)), user
+        response = JSONResponse(content={"message": "Login successful"})
+        response.set_cookie(key=ck_name, value=token,
+                            max_age=60, secure=True, httponly=True)
+        return response
+    return JSONResponse(content={"message": "User not found, please try again!"})
 
 
-@app.get('/product/{product_id}', status_code=status.HTTP_200_OK)
-async def product_info_by_id(product_id: int) -> Product | None:
-    result = next(
-        (item for item in sample_products if item['product_id'] == product_id), None)
-    return result
+@app.get('/user')
+async def read_items(session_token: str | None = Cookie(default=None)):
+    if session_token \
+            and (items := cookie_dict.get('session_token', None))\
+            and session_token == items[0]:
+        return items[1]
+    return JSONResponse(content={'message': 'Unauthorized'})
+
+
+@app.post('/logout')
+async def logout_user(response: Response):
+    response.delete_cookie('session_token')
