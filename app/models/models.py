@@ -1,8 +1,8 @@
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, Field
 
 
-class UserCreate(BaseModel):
+class Product(BaseModel):
+    product_id: int
     name: str
-    email: EmailStr
-    age: int | None = Field(default=None, gt=0)
-    is_subscribed: bool | None = None
+    category: str
+    price: float | None = Field(default=None, gt=0)
