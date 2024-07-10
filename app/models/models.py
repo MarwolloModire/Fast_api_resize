@@ -1,7 +1,10 @@
 from pydantic import BaseModel
 
 
-class User(BaseModel):
+class Feedback(BaseModel):
     name: str
-    age: int
-    is_adult: bool | None = None
+    message: str
+
+
+class ResponseModel(BaseModel):
+    message: str
