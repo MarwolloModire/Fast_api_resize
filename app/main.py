@@ -1,21 +1,27 @@
-from typing import Annotated
+from fastapi import FastAPI, Depends, status, HTTPException
+from fastapi.security import HTTPBasic, HTTPBasicCredentials
+from models.models import User, USER_DATA
 
-from fastapi import FastAPI, Header, HTTPException
-import re
 
 app = FastAPI()
+security = HTTPBasic()
 
 
-@app.get('/headers')
-async def get_headers(user_agent: Annotated[str | None, Header()] = None,
-                      accept_language: Annotated[str | None, Header()] = None):
-
-    if not user_agent or not accept_language:
+def authenticate_user(credentials: HTTPBasicCredentials = Depends(security)):
+    user = get_user_from_db(credentials.username)
+    if user is None or user.password != credentials.password:
         raise HTTPException(
-            status_code=400, detail='Required headers are missing')
+            status_code=status.HTTP_401_UNAUTHORIZED, detail='Invalid credentials')
+    return user
 
-    if not re.search(
-            r'.{2}-.{2},.{2};q=0\.\d,(.{2}|.{2}-.{2});q=0\.\d($|,.{2};q=0\.\d)', accept_language):
-        return HTTPException(400, 'Invalid Accept-Language format')
 
-    return {'User-Agent': user_agent, 'Accept-Language': accept_language}
+def get_user_from_db(username: str):
+    for user in USER_DATA:
+        if user.username == username:
+            return user
+    return None
+
+
+@app.get('/protected_resource/')
+def get_protected_resource(user: User = Depends(authenticate_user)):
+    return {'message': 'You have access to the protected resource!', 'user_info': user}
