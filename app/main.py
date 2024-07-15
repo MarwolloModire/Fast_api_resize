@@ -1,30 +1,64 @@
-from fastapi import FastAPI, Depends, status, HTTPException, Response
-from fastapi.security import HTTPBasic, HTTPBasicCredentials
-from models.models import User, USER_DATA
+from datetime import datetime, timedelta
+
+from fastapi import FastAPI, Depends, HTTPException, status
+from fastapi.security import OAuth2PasswordBearer
+from models.models import User
+from secrets import token_urlsafe
+from passlib.context import CryptContext
+import jwt
 
 
 app = FastAPI()
-security = HTTPBasic()
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl='login')
+
+SECRET_KEY = token_urlsafe(16)
+ALGORITHM = 'HS256'
+# Устанавливаем 'время жизни' токена
+EXPIRATION_TIME = timedelta(minutes=1)
+pwd_context = CryptContext(schemes=['bcrypt'], deprecated='auto')
+
+USERS_DATA = [
+    {'username': 'john_doe', 'password': 'securepassword123'}
+]
+# Хэшируем пароли в ДБ
+for h_p in USERS_DATA:
+    h_p['password'] = pwd_context.hash(h_p['password'])
 
 
-def authenticate_user(credentials: HTTPBasicCredentials = Depends(security)):
-    user = get_user_from_db(credentials.username)
-    if user is None or user.password != credentials.password:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail='Invalid credentials', headers={'WWW-Authenticate': 'Basic'})
-    return user
+# Функция создания токена с применением времени сгорания
+def create_jwt_token(data: dict):
+    data.update({'exp': datetime.now() + EXPIRATION_TIME})
+    return jwt.encode(data, SECRET_KEY, algorithm=ALGORITHM)
 
 
-def get_user_from_db(username: str):
-    for user in USER_DATA:
-        if user.username == username:
-            return user
-    return None
+# Функция проверки пользователя (Аутентификация)
+def authenticate_user(username: str, password: str):
+    for user in USERS_DATA:
+        if user['username'] == username:
+            return pwd_context.verify(password, user['password'])
+    return False
 
 
-@app.get('/login')
-def get_protected_resource(user: User = Depends(authenticate_user)):
-    response = Response(content='"You got my secret, welcome"')
-    response.headers['WWW-Authenticate'] = 'Basic, no-store'
-    response.status_code = status.HTTP_202_ACCEPTED
-    return response
+# Функция для проверки токена
+def verify_jwt_token(token: str = Depends(oauth2_scheme)):
+    try:
+        return jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail='The token has expired')
+    except jwt.PyJWTError:
+        raise HTTPException(status_code=401, detail='Invalid token')
+
+
+# Роут для входа
+@app.post('/login')
+async def login(user_in: User):
+    if authenticate_user(user_in.username, user_in.password):
+        return {'access_token': create_jwt_token({'sub': user_in.username}), 'token_type': 'bearer'}
+    raise HTTPException(status_code=401, detail='Invalid credentials')
+
+
+# Защищенный роут для получения информации о доступе
+@app.get('/protected_resource')
+async def about_me(verified_user: dict = Depends(verify_jwt_token)):
+    if verified_user:
+        return {'message': "Access granted! Let's GOOO!"}
