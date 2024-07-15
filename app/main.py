@@ -27,7 +27,7 @@ for h_p in USERS_DATA:
 
 # Функция создания токена с применением времени сгорания
 def create_jwt_token(data: dict):
-    data.update({'exp': datetime.now() + EXPIRATION_TIME})
+    data.update({'exp': datetime.utcnow() + EXPIRATION_TIME})
     return jwt.encode(data, SECRET_KEY, algorithm=ALGORITHM)
 
 
